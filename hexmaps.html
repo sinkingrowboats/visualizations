@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>US State Visualizations</title>
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,800" rel="stylesheet">
+  <style>
+    body {
+      height:100vh;
+      background-color: white;
+      font-family: "Open Sans", sans-serif;
+      font-size: 14px;
+    }
+    header {
+      text-align: center;
+      font-size: 20px;
+    }
+    .stateID {
+      font-family: sans-serif;
+      text-anchor: middle;
+      dominant-baseline: central;
+      font-size: 13px;
+      fill: #333;
+      /* citation:; http://stackoverflow.com/questions/4919076/outline-effect-to-text */
+      text-shadow:
+      1px  0px 1px #ddd,
+      -1px  0px 1px #ddd,
+      0px  1px 1px #ddd,
+      0px -1px 1px #ddd;
+    }
+    .container {
+      text-align: center;
+      height:100%;
+    }
+    .cell {
+      /* citation https://css-tricks.com/centering-css-complete-guide/ */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .lower {
+      margin-top: 50px;
+    }
+    .lower div{
+      display: inline-block;
+      vertical-align: top;
+    }
+    #thevis{
+      height:60%;
+      width:100%;
+    }
+    #cmapleg{
+      height:50%;
+      width:35%;
+    }
+    #cmapChooser{
+      height:50%;
+      width:30%;
+      font-size: 16px;
+    }
+  </style>
+  <script src="js/d3.js"></script>
+  <script src="js/numeric-1.2.6.js"></script>
+  <script src="js/hexmap.js"></script>
+</head>
+<body>
+  <header><h1>State By State Visualizations</h1></header>
+  <div class="container">
+    <div class="cell" id="thevis"><svg id="mapUS"></svg></div>
+    <div class = "lower">
+      <div class="cell" id="cmapleg">
+        <div style="position: relative;">
+          <canvas style="outline: #ccc solid 1px;"></canvas>
+          <!-- "cml" == colormap legend -->
+          <svg id="cmlLabels" style="position: absolute; left:-100px; top:-40px;
+                                     font-family: sans-serif; font-size: 12px;
+                                     fill: black; dominant-baseline: central;">
+            <g id="yminlabel" style="text-anchor: end;"><text>ymin</text></g>
+            <g id="ymaxlabel" style="text-anchor: end;"><text>ymax</text></g>
+            <g id="ylabel" style="text-anchor: middle;"><text>ylabel</text></g>
+            <g id="xminlabel" style="text-anchor: start;"><text>xmin</text></g>
+            <g id="xmaxlabel" style="text-anchor: end;"><text>xmax</text></g>
+            <g id="xlabel" style="text-anchor: middle;"><text>xlabel</text></g>
+          </svg>
+          <svg id="cmlMarks" style="position: absolute; left:0px; top:0px;">
+          </svg>
+        </div>
+      </div>
+
+      <div class="cell" id="cmapChooser">
+        <form align="left">
+          <input type="radio" name="whichCmap" value="OB">Obesity<br>
+          <input type="radio" name="whichCmap" value="UN">Unemployment<br>
+          <input type="radio" name="whichCmap" value="IM">Infant Mortality<br>
+          <input type="radio" name="whichCmap" value="VU">D,R votes (PL uni)<br>
+          <input type="radio" name="whichCmap" value="VB">D,R votes (PL,VA bi)<br>
+          <input type="radio" name="whichCmap" value="ER">Mens, Womens Earnings ($K)<br>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function() {
+    HexMap.CmapLegSize = 230;  // width and height of picture of colormap
+    var HexWidth = 53;     // hexagon width
+    /* set size of SVG to contain US map, based on number of hexagons
+       in it horizontally and vertically */
+    d3.select("#mapUS")
+        .attr("width", 12*HexWidth)
+        .attr("height", (8 + 1/3)*(Math.sqrt(3)/2)*HexWidth);
+
+    /* function to learn which radio button was selected;
+       citation: http://stackoverflow.com/a/9618826 */
+    function whichRadio(name) {
+        var radios = document.getElementsByName(name);
+        for (var i = 0, length = radios.length; i < length; i++) {
+            if (radios[i].checked) {
+                return radios[i].value;
+            }
+        }
+        return undefined;
+    }
+
+    d3.select("#cmapChooser").selectAll("input").on("click", function() {
+        var radio = whichRadio("whichCmap");
+        HexMap.choiceSet(radio);
+    });
+
+    /* create the canvas in which to put an image of the colormap used.
+       citation http://bl.ocks.org/mbostock/11413789 */
+    var canvas = document.querySelector("canvas");
+    canvas.width = HexMap.CmapLegSize;
+    canvas.height = HexMap.CmapLegSize;
+    HexMap.cmlContext = canvas.getContext("2d"); // global
+    HexMap.cmlImage = HexMap.cmlContext.createImageData(HexMap.CmapLegSize, HexMap.CmapLegSize);
+    /* set pixels of cmlImage to checkerboard */
+    for (var j=0, k=0; j < HexMap.CmapLegSize; ++j) {
+        for (var i=0; i < HexMap.CmapLegSize; ++i) {
+            HexMap.cmlImage.data[k++] = 230 + 25*(Math.floor(i/10) % 2);
+            HexMap.cmlImage.data[k++] = 230 + 25*(Math.floor(j/10) % 2);
+            HexMap.cmlImage.data[k++] = 230
+            HexMap.cmlImage.data[k++] = 255;
+        }
+    }
+    // display cmlImage inside canvas
+    HexMap.cmlContext.putImageData(HexMap.cmlImage, 0, 0);
+
+    /* place the colormap axis labels. */
+    d3.select("#cmlMarks")
+        .attr("width", HexMap.CmapLegSize)
+        .attr("height", HexMap.CmapLegSize)
+    d3.select("#cmlLabels")
+        .attr("width", 160+HexMap.CmapLegSize)
+        .attr("height", 120+HexMap.CmapLegSize)
+    d3.select("#yminlabel")
+        .attr("transform", "translate(96, " + (40+HexMap.CmapLegSize) + ")")
+    d3.select("#ymaxlabel")
+        .attr("transform", "translate(96, 40)")
+    d3.select("#ylabel")
+        .attr("transform", "translate(20," + (HexMap.CmapLegSize-75) + ")rotate(-90)")
+    d3.select("#xminlabel")
+        .attr("transform", "translate(100, " + (54+HexMap.CmapLegSize) + ")")
+    d3.select("#xmaxlabel")
+        .attr("transform", "translate(" + (100+HexMap.CmapLegSize) + ", " + (54+HexMap.CmapLegSize) + ")")
+    d3.select("#xlabel")
+        .attr("transform", "translate(" + (HexMap.CmapLegSize-16) + ", " + (80+HexMap.CmapLegSize) + ")")
+
+
+
+
+
+    /* read the data */
+    d3.csv("data/state-data.csv", function(error, data) {
+        if (error) throw error;
+
+        /* augment each datum (row of csv file) with "xy" coordinates of hexagon center
+           and "pathdata" svg specification of hexagon perimeter */
+        data.forEach(function(d,ii) {
+          var S = HexMap.HexScaling; // hexagon scaling (1 = touching)
+          var hr = Number(d["HexRow"]);
+          var hc = Number(d["HexCol"]);
+          // (x,y) center of hexagon, given location in hex grid
+          d.xy = [HexWidth*(-2 + hc + 0.5*hr),
+                  1+HexWidth*(-0.3 + 0.5*Math.sqrt(3)*hr)];
+          // variables to simplify tracing hexagon corners
+          var dx = S*HexWidth/2;
+          var HY = S*HexWidth/Math.sqrt(3);
+          var dy = HY/2;
+          // traverse vertices of hexagon centered at 0,0
+          d.pathdata = ("M" + (-dx) + "," + dy +
+                "l" + dx + "," + dy +
+                "l" + dx + "," + (-dy) +
+                "l0," + (-HY) +
+                "l" + (-dx) + "," + (-dy) +
+                "l" + (-dx) + "," + (dy) + "Z");
+          d.ii = ii;
+        });
+
+        /* for each state, create a "g", which will contain both a "path", for
+           the hexagon, and a "text" to show the state abbreviation */
+        var stategs = d3.select("#mapUS").selectAll("g")
+            .data(data)
+          .enter().append("g")
+            .attr("id", function(d){ return d.State;})
+            .attr("transform", function(d) { return "translate(" + d.xy[0] + "," + d.xy[1] + ")"; })
+            .on("click", function(){ HexMap.toggleState(d3.select(this).attr("id")); })
+            ;
+        stategs.append("path")
+          .attr("id", function(d){ return d.State + "hex";})
+          .attr("class", "state")
+          .attr("d", function(d){ return d.pathdata;})
+          .style("fill", function(d){ return "#ddd" }) // initialize to grey
+          ;
+        stategs.append("text")
+          .attr("class", "stateID")
+          .text( function(d) { return d["State"]; });
+
+        /* maps interval [0,data.length-1] to [0,HexMap.CmapLegSize-1] */
+        var tscl = d3.scale.linear().domain([0,data.length-1]).range([0,HexMap.CmapLegSize-1]);
+
+        /* create marks that will indicate the data values over both the
+           univariate and bivariate colormap displays. They are 
+           ellipses, which can be turned into either vertical
+           tickmarks, or circles, and have smooth transitions in between */
+        d3.select("#cmlMarks").selectAll("ellipse")
+            .data(data)
+          .enter().append("ellipse")
+            .attr("id", function(d){ return d.State + "mark";})
+            .attr("state", function(d){ return d.State;})
+            .attr("rx", HexMap.MarkRadius).attr("ry", HexMap.MarkRadius)
+            .attr("cx", function(d) { return tscl(d.ii); })
+            .attr("cy", function(d) { return HexMap.CmapLegSize-1-tscl(d.ii); })
+            .attr("stroke", "black")
+            .attr("stroke-opacity", 0.6)
+            .attr("stroke-width", 2)
+            /* fill, even if opacity is zero, so that clicking
+               inside the circle (in the bivariate case) selects the state */
+            .attr("fill", "white")
+            .attr("fill-opacity", 0)
+            .on("click", function(){ HexMap.toggleState(d3.select(this).attr("state")); })
+        ;
+
+        HexMap.dataFinish(data);
+
+    });
+    })();
+    </script>
+  </body>
+</html>

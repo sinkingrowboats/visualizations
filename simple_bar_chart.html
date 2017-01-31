@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+        <title>A Brief Analysis of Income Inequality</title>
+        <script type="text/javascript" src="js/d3.js"></script>
+		<style>
+
+		body{
+			height: 100%;
+			font-family: sans-serif;
+		}
+		html, body { 
+			margin: 0; 
+			padding: 0; 
+			width: 100%; 
+			height: 100%;
+		}
+
+		h1 {
+			font-size: 25px;
+			text-align: center;
+			padding: 0 2%;
+		}
+		.vis_container { 
+			width: 100%; 
+			height: 2000px;
+			top: 0px;
+		}
+		.guide_container{
+			text-align: center;
+			height: 20px;
+		}
+		.data_container{
+			width: 100%;
+		}
+		.chart_container {
+			float: left;
+			width: 90%; 
+			height: 75%; 
+			/* 75% because whitespace is supposed to be 2/3 height of one bar
+			one bar is 3/3. Two bars account for six. Therefore, it's appxt
+			3+3+2 = 8. bars occupy 6/8 of their wrapper div */
+		}
+		.lable {
+			height: 75%;
+			width: 5%;
+			float: left;
+			text-align: right;
+			display: table;
+
+		}
+		.lable p {
+			display: table-cell;
+			vertical-align: middle;
+			font-size: 10px;
+		}
+		.man {
+			height: 50%;
+			background: #E6A064;
+		}
+		.woman {
+			height: 50%;
+			background: #6EAFFF;
+		}
+		svg{
+			padding-left: 5%
+		}
+		.x_axis{
+			width: 100%;
+		}
+		.x_axis text {
+		  font: 10px sans-serif;
+		}
+
+		.x_axis path, .x_axis line {
+		  fill: none;
+		  stroke: #000;
+		  shape-rendering: crispEdges;
+		}
+
+		</style>
+	</head>
+	<body>
+		<h1>Median Annual Earnings for Women and Men with a Bachelor's Degree or Higher (Full-Time, Year-Round Workers Aged 25 and Older), by State, in 2013</h1>
+		<div class="guide_container"></div>
+		<div class="vis_container">	</div>
+		<script src="js/d3.js"></script>
+		<script>
+			var x = d3.scale.linear()
+			    .domain([0,100000])
+			    .range([0,window.innerWidth*.9]);
+			    /* make bar 90% of page width */
+
+			var xAxis = d3.svg.axis()
+			    .scale(x)
+			    .ticks(10)
+			    .tickFormat(d3.format("$s"))
+			    .orient("bottom");
+
+			var svg = d3.select(".guide_container").append("svg")
+			    .attr("width", "100%")
+			    .attr("height", "100%")
+				.append("g")
+				.attr("class", "x_axis")
+				.attr("width", "100%")
+				.attr("width", "100%");
+			    
+			svg.call(xAxis);
+
+    		window.addEventListener("resize", myFunction);
+
+		    function myFunction() {
+			   	var vg = d3.select("svg")
+			   	 var newx = d3.scale.linear()
+			    .domain([0,100000])
+			    .range([0,window.innerWidth*.9]);
+
+				var newxAxis = d3.svg.axis()
+				.scale(newx)
+				.ticks(10)
+				.tickFormat(d3.format("$s"))
+				.orient("bottom");
+				vg.call(newxAxis);
+
+		    }
+
+            d3.csv("data/state-women-men.csv", function(data){
+            	console.log(data[0]);
+            	console.log(data.length);
+            	dataset = data;
+            	doSomething(data);
+            });
+
+            function doSomething(data) {
+            var datadivs = d3.select(".vis_container").selectAll("div")
+            .data(dataset)
+            .enter()
+            .append("div")
+            .attr("class","data_container")
+            .style("height", 100.0/(dataset.length) + "%");
+            datadivs.append('div')
+            .attr("class","lable")
+            .append("p")
+            .text(function(d){
+            	return (d['State'] + " -");
+            });
+
+            var databars = datadivs.append("div")
+            .attr("class", "chart_container");
+
+            databars.append("div")
+            .attr("class","woman")
+            .style("width", function(d) {
+            	return (d['Women']/100.0)*100.0 + "%";
+            });
+
+            databars.append("div")
+            .attr("class","man")
+            .style("width", function(d) {
+            	return (d['Men']/100.0)*100.0 + "%";
+            });
+        } 
+        </script>
+	</body>
+</html>
